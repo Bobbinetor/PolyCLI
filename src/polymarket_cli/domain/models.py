@@ -155,12 +155,16 @@ def normalize_market(payload: dict[str, Any]) -> MarketSummary:
         outcomes=[str(item) for item in parse_jsonish_list(payload.get("outcomes"))],
         outcome_prices=[
             float(item)
-            for item in parse_jsonish_list(payload.get("outcomePrices") or payload.get("outcome_prices"))
+            for item in parse_jsonish_list(
+                payload.get("outcomePrices") or payload.get("outcome_prices")
+            )
             if parse_optional_float(item) is not None
         ],
         clob_token_ids=[
             str(item)
-            for item in parse_jsonish_list(payload.get("clobTokenIds") or payload.get("clob_token_ids"))
+            for item in parse_jsonish_list(
+                payload.get("clobTokenIds") or payload.get("clob_token_ids")
+            )
         ],
         tags=[item for item in tag_labels if item],
     )
@@ -169,7 +173,9 @@ def normalize_market(payload: dict[str, Any]) -> MarketSummary:
 def normalize_event(payload: dict[str, Any], keyword_hits: list[str] | None = None) -> EventSummary:
     tags = payload.get("tags") or []
     tag_labels = [tag.get("slug") or tag.get("label") for tag in tags if isinstance(tag, dict)]
-    markets = [normalize_market(item) for item in payload.get("markets") or [] if isinstance(item, dict)]
+    markets = [
+        normalize_market(item) for item in payload.get("markets") or [] if isinstance(item, dict)
+    ]
 
     return EventSummary(
         id=str(payload.get("id")),
@@ -184,7 +190,9 @@ def normalize_event(payload: dict[str, Any], keyword_hits: list[str] | None = No
         end_date=parse_optional_datetime(payload.get("endDate") or payload.get("end_date")),
         volume=parse_optional_float(payload.get("volume")),
         liquidity=parse_optional_float(payload.get("liquidity")),
-        open_interest=parse_optional_float(payload.get("openInterest") or payload.get("open_interest")),
+        open_interest=parse_optional_float(
+            payload.get("openInterest") or payload.get("open_interest")
+        ),
         tags=[item for item in tag_labels if item],
         markets=markets,
         keyword_hits=keyword_hits or [],

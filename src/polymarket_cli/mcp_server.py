@@ -7,7 +7,6 @@ wallets on Polymarket.
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
@@ -17,7 +16,6 @@ from polymarket_cli.clients.gamma import GammaClient
 from polymarket_cli.main import build_runtime
 from polymarket_cli.services.discovery import DiscoveryService
 from polymarket_cli.services.ranking import RankingService
-
 
 mcp = FastMCP(
     "polycli",
@@ -74,9 +72,7 @@ async def discover_markets(
     Returns the run_id which can be passed to rank_snapshot.
     """
     _ensure_runtime()
-    snapshot = await _discovery.run_keywords(
-        label=label, keywords=keywords, limit=limit
-    )
+    snapshot = await _discovery.run_keywords(label=label, keywords=keywords, limit=limit)
     return {
         "status": "success",
         "run_id": snapshot.run_id,
@@ -114,7 +110,7 @@ async def get_snapshot_events(run_id: str) -> dict[str, Any]:
 @mcp.tool()
 async def get_snapshot_markets(run_id: str) -> dict[str, Any]:
     """Get all markets from a discovery snapshot.
-    
+
     Includes condition_id, which is required for forensic tools.
     """
     _ensure_runtime()
@@ -195,9 +191,7 @@ async def get_wallet_positions(
     is redeemable. Use this to understand what a wallet is betting on.
     """
     _ensure_runtime()
-    return await _data_api.get_positions(
-        address, event_id=event_id, limit=limit
-    )
+    return await _data_api.get_positions(address, event_id=event_id, limit=limit)
 
 
 @mcp.tool()
@@ -213,9 +207,7 @@ async def get_wallet_trades(
     suspicious timing patterns, wash trading, or front-running.
     """
     _ensure_runtime()
-    return await _data_api.get_trades(
-        address=address, market=market, limit=limit
-    )
+    return await _data_api.get_trades(address=address, market=market, limit=limit)
 
 
 @mcp.tool()
@@ -261,9 +253,7 @@ async def get_price_history(
     parameter controls the lookback window (e.g., '1d', '1w', 'max').
     """
     _ensure_runtime()
-    return await _data_api.get_price_history(
-        clob_token_id, interval=interval, fidelity=fidelity
-    )
+    return await _data_api.get_price_history(clob_token_id, interval=interval, fidelity=fidelity)
 
 
 # ===================================================================

@@ -40,9 +40,9 @@ class LaunchdService:
   <key>RunAtLoad</key>
   <true/>
   <key>StandardOutPath</key>
-  <string>{self.project_dir / 'logs' / (watchlist.name + '.out.log')}</string>
+  <string>{self.project_dir / "logs" / (watchlist.name + ".out.log")}</string>
   <key>StandardErrorPath</key>
-  <string>{self.project_dir / 'logs' / (watchlist.name + '.err.log')}</string>
+  <string>{self.project_dir / "logs" / (watchlist.name + ".err.log")}</string>
 </dict>
 </plist>
 """

@@ -14,7 +14,6 @@ from polymarket_cli.llm.ollama import OllamaRankingAdapter
 from polymarket_cli.llm.openrouter import OpenRouterRankingAdapter
 from polymarket_cli.storage.sqlite import SQLiteStore
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -70,11 +69,7 @@ class RankingService:
 
     def _build_prompt(self, prompt_template: str, frame: pl.DataFrame) -> str:
         rows = frame.to_dicts()
-        return (
-            f"{prompt_template.strip()}\n\n"
-            "Records:\n"
-            f"{json.dumps(rows, indent=2)}"
-        )
+        return f"{prompt_template.strip()}\n\nRecords:\n{json.dumps(rows, indent=2)}"
 
     def _coerce_ranking_item(self, payload: dict) -> dict:
         coerced = dict(payload)
@@ -108,10 +103,10 @@ class RankingService:
         max_rows: int | None = None,
     ) -> RankingResult:
         resolved_max_rows = max_rows if max_rows is not None else self.settings.ranking_max_rows
-        
+
         events = self.sqlite_store.get_discovery_events(run_id)
         frame = pl.DataFrame([dict(row) for row in events]).head(max(1, resolved_max_rows))
-        
+
         if dry_run or frame.is_empty():
             ranking = self._heuristic_rank(frame)
         else:
@@ -134,7 +129,10 @@ class RankingService:
                 logger.warning("Falling back to heuristic ranking after LLM parse failure: %s", exc)
                 ranking = self._heuristic_rank(frame).model_copy(
                     update={
-                        "summary": f"LLM response could not be parsed; fell back to heuristic ranking. {exc}",
+                        "summary": (
+                            "LLM response could not be parsed; "
+                            f"fell back to heuristic ranking. {exc}"
+                        ),
                         "raw_response": raw_response,
                     }
                 )

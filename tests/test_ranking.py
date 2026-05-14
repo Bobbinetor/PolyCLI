@@ -19,7 +19,7 @@ async def test_ranking_service_heuristic_mode(tmp_path: Path) -> None:
         {"event_id": "1", "title": "BTC market", "volume": 4000, "liquidity": 800, "live": 1},
         {"event_id": "2", "title": "ETH market", "volume": 1000, "liquidity": 200, "live": 0},
     ]
-    
+
     prompt_path = tmp_path / "prompt.md"
     prompt_path.write_text("Rank these events", encoding="utf-8")
 
@@ -58,7 +58,10 @@ async def test_ranking_service_falls_back_when_llm_returns_invalid_json(
             del prompt
             return "not json"
 
-    monkeypatch.setattr("polymarket_cli.services.ranking.build_adapter", lambda settings, provider: DummyAdapter())
+    monkeypatch.setattr(
+        "polymarket_cli.services.ranking.build_adapter",
+        lambda settings, provider: DummyAdapter(),
+    )
 
     ranking = await ranking_service.rank_run(
         run_id="fake-run",
@@ -101,7 +104,10 @@ async def test_ranking_service_coerces_common_llm_types(
                 '"thesis":"Strong signal","risks":"Volatility"}]}'
             )
 
-    monkeypatch.setattr("polymarket_cli.services.ranking.build_adapter", lambda settings, provider: DummyAdapter())
+    monkeypatch.setattr(
+        "polymarket_cli.services.ranking.build_adapter",
+        lambda settings, provider: DummyAdapter(),
+    )
 
     ranking = await ranking_service.rank_run(
         run_id="fake-run",

@@ -65,9 +65,7 @@ class ReplCompleter(Completer):
         self._watchlist_names = watchlist_names_provider
         self._prompt_files = prompt_files_provider
 
-    def get_completions(
-        self, document: Document, complete_event: CompleteEvent
-    ):
+    def get_completions(self, document: Document, complete_event: CompleteEvent):
         text = document.text_before_cursor.lstrip()
         if not text.startswith("/"):
             return

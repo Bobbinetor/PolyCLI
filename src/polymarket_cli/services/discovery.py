@@ -35,7 +35,12 @@ class DiscoveryService:
         self.sqlite_store.record_discovery_run(snapshot)
         return snapshot
 
-    async def run_keywords(self, label: str, keywords: list[str], limit: int = 25) -> DiscoverySnapshot:
+    async def run_keywords(
+        self,
+        label: str,
+        keywords: list[str],
+        limit: int = 25,
+    ) -> DiscoverySnapshot:
         events = await self.gamma.discover_keywords(keywords, limit=limit)
         snapshot = DiscoverySnapshot(
             run_id=self._generate_run_id(),

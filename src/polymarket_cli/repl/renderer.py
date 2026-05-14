@@ -75,6 +75,7 @@ _SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇"
 class _TimerSpinnerRenderable:
     def __init__(self, message: str):
         from rich.spinner import Spinner
+
         self.message = message
         self.start_time = time.monotonic()
         self.spinner = Spinner("dots")
@@ -82,16 +83,19 @@ class _TimerSpinnerRenderable:
     def __rich__(self) -> Text:
         elapsed = time.monotonic() - self.start_time
         return Text.assemble(
-            "  ", self.spinner.render(time.monotonic()), " ",
+            "  ",
+            self.spinner.render(time.monotonic()),
+            " ",
             (self.message, "pm.muted"),
-            (f" ({elapsed:.0f}s)", "pm.dim")
+            (f" ({elapsed:.0f}s)", "pm.dim"),
         )
+
 
 @contextlib.contextmanager
 def spinner(message: str) -> Generator[None, None, None]:
     """Animated inline spinner using Rich Live for maximum reliability."""
     from rich.live import Live
-    
+
     renderable = _TimerSpinnerRenderable(message)
     with Live(renderable, refresh_per_second=12, transient=True, console=console):
         yield
@@ -164,13 +168,8 @@ def render_help(specs: list[tuple[str, str, str]]) -> None:
     console.print("  [pm.header]Available Commands[/]")
     console.print()
     for name, usage, summary in specs:
-        console.print(
-            f"  [pm.accent]{name:<14}[/]"
-            f"[pm.muted]{summary}[/]"
-        )
-        console.print(
-            f"  {'':14}[dim]{usage}[/]"
-        )
+        console.print(f"  [pm.accent]{name:<14}[/][pm.muted]{summary}[/]")
+        console.print(f"  {'':14}[dim]{usage}[/]")
     console.print()
 
 
@@ -187,13 +186,13 @@ def render_detailed_help(
     console.print()
     console.print("  [pm.header]Syntax:[/]")
     console.print(f"  [pm.success]{usage}[/]")
-    
+
     if options:
         console.print()
         console.print("  [pm.header]Options & Arguments:[/]")
         for opt, opt_desc in options:
             console.print(f"    [pm.accent]{opt:<15}[/] [pm.muted]{opt_desc}[/]")
-            
+
     if examples:
         console.print()
         console.print("  [pm.header]Examples:[/]")
@@ -217,13 +216,8 @@ def render_status(
     console.print()
     console.print("  [pm.header]Session Status[/]")
     console.print()
-    console.print(
-        f"  [pm.muted]Label    [/] [pm.label]{label_text}[/]"
-    )
-    console.print(
-        f"  [pm.muted]Stream   [/] {stream_state}"
-        f" · {stream_count} messages"
-    )
+    console.print(f"  [pm.muted]Label    [/] [pm.label]{label_text}[/]")
+    console.print(f"  [pm.muted]Stream   [/] {stream_state} · {stream_count} messages")
     console.print(f"  [pm.muted]LLM      [/] {llm}")
     console.print(f"  [pm.muted]Version  [/] {version}")
     console.print()
@@ -282,7 +276,10 @@ def render_events_table(
         padding=(0, 1),
     )
     table.add_column(
-        "Title", ratio=4, no_wrap=True, overflow="ellipsis",
+        "Title",
+        ratio=4,
+        no_wrap=True,
+        overflow="ellipsis",
     )
     table.add_column("Category", ratio=1, style="pm.muted")
     table.add_column("Volume", ratio=1, justify="right")
@@ -325,10 +322,16 @@ def render_ranking_table(
         padding=(0, 1),
     )
     table.add_column(
-        "Event", ratio=4, no_wrap=True, overflow="ellipsis",
+        "Event",
+        ratio=4,
+        no_wrap=True,
+        overflow="ellipsis",
     )
     table.add_column(
-        "Score", ratio=0, justify="right", style="pm.accent",
+        "Score",
+        ratio=0,
+        justify="right",
+        style="pm.accent",
     )
     table.add_column("Action", ratio=1)
     table.add_column("Confidence", ratio=0, justify="right")
@@ -344,11 +347,9 @@ def render_ranking_table(
     console.print()
     console.print(table)
     console.print()
-    console.print(Panel(
-        Markdown(summary),
-        title=f"[pm.accent]{provider}:{model}[/]",
-        border_style="#3b4a5c"
-    ))
+    console.print(
+        Panel(Markdown(summary), title=f"[pm.accent]{provider}:{model}[/]", border_style="#3b4a5c")
+    )
     console.print()
 
 
@@ -477,11 +478,17 @@ def render_stream_messages(
     table.add_column("Type", width=12)
     table.add_column("Asset", width=20)
     table.add_column(
-        "Details", ratio=1, no_wrap=True, overflow="ellipsis",
+        "Details",
+        ratio=1,
+        no_wrap=True,
+        overflow="ellipsis",
     )
     for row in list(messages)[:limit]:
         table.add_row(
-            row["time"], row["type"], row["asset"], row["details"],
+            row["time"],
+            row["type"],
+            row["asset"],
+            row["details"],
         )
     console.print()
     console.print(table)

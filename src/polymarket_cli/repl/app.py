@@ -29,7 +29,6 @@ from polymarket_cli.repl.completions import ReplCompleter
 from polymarket_cli.storage.sqlite import SQLiteStore
 from polymarket_cli.streams.polymarket_ws import (
     MarketStreamClient,
-    load_asset_ids,
 )
 
 
@@ -83,21 +82,17 @@ class ReplApp:
         if latest is None:
             R.warn("No snapshots available. Run /discover first.")
             return
-            
+
         markets = self.sqlite_store.get_discovery_markets(latest["run_id"])
         if not markets:
             R.warn("No markets found in this snapshot.")
             return
-            
+
         source = f"sqlite:{latest['run_id']}"
-        if (
-            self._stream_source == source
-            and self._stream_task
-            and not self._stream_task.done()
-        ):
+        if self._stream_source == source and self._stream_task and not self._stream_task.done():
             R.info("Stream already running for this snapshot.")
             return
-            
+
         self._stop_stream_task()
         self._stream_source = source
         asset_ids = [m["condition_id"] for m in markets if m["condition_id"]][:12]
@@ -108,9 +103,7 @@ class ReplApp:
         R.success(
             f"Stream started — {len(asset_ids)} assets subscribed",
         )
-        self._stream_task = asyncio.get_event_loop().create_task(
-            self._run_stream(asset_ids)
-        )
+        self._stream_task = asyncio.get_event_loop().create_task(self._run_stream(asset_ids))
 
     def stop_stream(self) -> None:
         self._stop_stream_task()
@@ -165,10 +158,7 @@ class ReplApp:
         stream_part = ""
         if self._stream_task and not self._stream_task.done():
             count = len(self.stream_messages)
-            stream_part = (
-                f' <style fg="#3b4a5c">·</style>'
-                f' <style fg="#22c55e">⚡{count}</style>'
-            )
+            stream_part = f' <style fg="#3b4a5c">·</style> <style fg="#22c55e">⚡{count}</style>'
 
         if self.current_label:
             return HTML(
@@ -192,12 +182,14 @@ class ReplApp:
             return None
         cmd = parts[0].lower()
         from polymarket_cli.repl.commands import HELP_SPECS, _resolve
+
         resolved = _resolve(cmd)
         if not resolved:
             return None
         spec = next((s for s in HELP_SPECS if s[0] == resolved), None)
         if spec:
             import html
+
             safe_syntax = html.escape(spec[1])
             return HTML(f'<style fg="#6b7280"> Syntax: {safe_syntax}</style>')
         return None
@@ -220,17 +212,12 @@ class ReplApp:
         return sorted(lbl for lbl in labels if lbl)
 
     def _list_watchlist_names(self) -> list[str]:
-        return sorted(
-            w.name
-            for w in load_watchlists(self.settings.watchlists_path)
-        )
+        return sorted(w.name for w in load_watchlists(self.settings.watchlists_path))
 
     def _list_prompt_files(self) -> list[str]:
         if not self.settings.prompts_path.exists():
             return ["default-ranking.md"]
-        return sorted(
-            p.name for p in self.settings.prompts_path.glob("*.md")
-        )
+        return sorted(p.name for p in self.settings.prompts_path.glob("*.md"))
 
     # ── Stream background task ───────────────────────────────────────
 
@@ -239,31 +226,25 @@ class ReplApp:
         latest = self.sqlite_store.latest_discovery_run(self.current_label)
         if latest is None:
             return
-            
+
         markets = self.sqlite_store.get_discovery_markets(latest["run_id"])
         if not markets:
             return
-            
+
         asset_ids = [m["condition_id"] for m in markets if m["condition_id"]][:12]
         if not asset_ids:
             return
-            
+
         self._stream_source = f"sqlite:{latest['run_id']}"
         self.stream_status = f"streaming {len(asset_ids)} assets"
-        self._stream_task = asyncio.get_event_loop().create_task(
-            self._run_stream(asset_ids)
-        )
+        self._stream_task = asyncio.get_event_loop().create_task(self._run_stream(asset_ids))
 
     async def _run_stream(self, asset_ids: list[str]) -> None:
         async def on_message(payload: dict) -> None:
             self.stream_messages.appendleft(
                 {
                     "time": datetime.now(UTC).strftime("%H:%M:%S"),
-                    "type": str(
-                        payload.get("event_type")
-                        or payload.get("type")
-                        or "message"
-                    ),
+                    "type": str(payload.get("event_type") or payload.get("type") or "message"),
                     "asset": str(
                         payload.get("asset_id")
                         or payload.get("market")
@@ -272,10 +253,13 @@ class ReplApp:
                         or "-"
                     ),
                     "details": json.dumps(
-                        payload, default=str,
+                        payload,
+                        default=str,
                     )[:100],
                     "full": json.dumps(
-                        payload, default=str, indent=2,
+                        payload,
+                        default=str,
+                        indent=2,
                     )[:1200],
                 }
             )
@@ -285,7 +269,8 @@ class ReplApp:
 
         try:
             await self.stream_client.stream_assets(
-                asset_ids, on_message=on_message,
+                asset_ids,
+                on_message=on_message,
             )
         except asyncio.CancelledError:
             raise

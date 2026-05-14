@@ -28,7 +28,11 @@ class OpenRouterRankingAdapter(RankingAdapter):
                 }
             ],
         }
-        async with httpx.AsyncClient(base_url=self.base_url, timeout=120.0, headers=headers) as client:
+        async with httpx.AsyncClient(
+            base_url=self.base_url,
+            timeout=120.0,
+            headers=headers,
+        ) as client:
             response = await client.post("/chat/completions", json=body)
             response.raise_for_status()
             payload = response.json()

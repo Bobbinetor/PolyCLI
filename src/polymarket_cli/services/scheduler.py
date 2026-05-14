@@ -10,7 +10,12 @@ from polymarket_cli.storage.sqlite import SQLiteStore
 
 
 class SchedulerService:
-    def __init__(self, watchlists_path, discovery_service: DiscoveryService, sqlite_store: SQLiteStore) -> None:
+    def __init__(
+        self,
+        watchlists_path,
+        discovery_service: DiscoveryService,
+        sqlite_store: SQLiteStore,
+    ) -> None:
         self.watchlists_path = watchlists_path
         self.discovery_service = discovery_service
         self.sqlite_store = sqlite_store

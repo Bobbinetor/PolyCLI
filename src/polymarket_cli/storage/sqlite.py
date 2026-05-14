@@ -121,7 +121,14 @@ class SQLiteStore:
             for item in watchlists:
                 connection.execute(
                     """
-                    INSERT INTO watch_jobs (name, schedule, poll_minutes, keywords, enabled, updated_at)
+                    INSERT INTO watch_jobs (
+                        name,
+                        schedule,
+                        poll_minutes,
+                        keywords,
+                        enabled,
+                        updated_at
+                    )
                     VALUES (?, ?, ?, ?, ?, ?)
                     ON CONFLICT(name) DO UPDATE SET
                         schedule=excluded.schedule,
@@ -180,9 +187,26 @@ class SQLiteStore:
                 connection.execute(
                     """
                     INSERT INTO events (
-                        run_id, event_id, title, slug, description, active, closed, live, category,
-                        start_date, end_date, volume, liquidity, open_interest, tags, keyword_hits, market_count
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        run_id,
+                        event_id,
+                        title,
+                        slug,
+                        description,
+                        active,
+                        closed,
+                        live,
+                        category,
+                        start_date,
+                        end_date,
+                        volume,
+                        liquidity,
+                        open_interest,
+                        tags,
+                        keyword_hits,
+                        market_count
+                    ) VALUES (
+                        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    )
                     """,
                     (
                         snapshot.run_id,
@@ -202,17 +226,34 @@ class SQLiteStore:
                         ",".join(event.tags),
                         ",".join(event.keyword_hits),
                         event.market_count(),
-                    )
+                    ),
                 )
 
                 for market in event.markets:
                     connection.execute(
                         """
                         INSERT INTO markets (
-                            run_id, event_id, market_id, question, slug, condition_id, active, closed,
-                            end_date, volume, liquidity, best_bid, best_ask, last_trade_price,
-                            outcomes, outcome_prices, clob_token_ids, tags
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            run_id,
+                            event_id,
+                            market_id,
+                            question,
+                            slug,
+                            condition_id,
+                            active,
+                            closed,
+                            end_date,
+                            volume,
+                            liquidity,
+                            best_bid,
+                            best_ask,
+                            last_trade_price,
+                            outcomes,
+                            outcome_prices,
+                            clob_token_ids,
+                            tags
+                        ) VALUES (
+                            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                        )
                         """,
                         (
                             snapshot.run_id,
@@ -233,7 +274,7 @@ class SQLiteStore:
                             ",".join(str(p) for p in market.outcome_prices),
                             ",".join(market.clob_token_ids),
                             ",".join(market.tags),
-                        )
+                        ),
                     )
 
     def latest_discovery_run(self, label: str | None = None) -> sqlite3.Row | None:
@@ -277,7 +318,14 @@ class SQLiteStore:
         with self._connect() as connection:
             connection.execute(
                 """
-                INSERT INTO ranking_runs (run_id, provider, model, summary, shortlist_json, created_at)
+                INSERT INTO ranking_runs (
+                    run_id,
+                    provider,
+                    model,
+                    summary,
+                    shortlist_json,
+                    created_at
+                )
                 VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(run_id) DO UPDATE SET
                     provider=excluded.provider,

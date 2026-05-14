@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from polymarket_cli.repl.commands import dispatch, _extract_options
+from polymarket_cli.repl.commands import _extract_options, dispatch
 
 
 def test_extract_options() -> None:
@@ -19,7 +19,7 @@ async def test_dispatch_help() -> None:
     host = MagicMock()
     # dispatch directly catches and logs, so we just ensure it doesn't crash
     await dispatch(host, "/help")
-    
+
     # testing a specific help
     await dispatch(host, "/discover --help")
 

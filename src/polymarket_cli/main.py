@@ -12,7 +12,6 @@ from polymarket_cli.services.discovery import DiscoveryService
 from polymarket_cli.services.ranking import RankingService
 from polymarket_cli.storage.sqlite import SQLiteStore
 
-
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 console = Console()
 app = typer.Typer(
@@ -34,13 +33,19 @@ def main(
     label: Annotated[
         str | None,
         typer.Option(
-            "--label", "-l",
+            "--label",
+            "-l",
             help="Start the REPL focused on a label.",
         ),
     ] = None,
     version: Annotated[
         bool | None,
-        typer.Option("--version", callback=version_callback, is_eager=True, help="Show version and exit."),
+        typer.Option(
+            "--version",
+            callback=version_callback,
+            is_eager=True,
+            help="Show version and exit.",
+        ),
     ] = None,
 ) -> None:
     """PolyCLI — launch without a subcommand to enter the interactive REPL."""
@@ -68,31 +73,59 @@ def launch_repl(label: str | None = None) -> None:
 
 @app.command()
 def discover(
-    keywords: Annotated[list[str], typer.Argument(help="Keywords to search for")],
-    label: Annotated[str, typer.Option("--label", "-l", help="Label for this discovery run")] = "cli",
-    limit: Annotated[int, typer.Option("--limit", help="Max events to fetch")] = 25,
+    keywords: Annotated[
+        list[str],
+        typer.Argument(help="Keywords to search for"),
+    ],
+    label: Annotated[
+        str,
+        typer.Option("--label", "-l", help="Label for this discovery run"),
+    ] = "cli",
+    limit: Annotated[
+        int,
+        typer.Option("--limit", help="Max events to fetch"),
+    ] = 25,
 ) -> None:
     """Run a one-off discovery and save the snapshot to the database."""
     settings, sqlite_store = build_runtime()
     gamma = GammaClient(settings.gamma_base_url)
     discovery = DiscoveryService(gamma, sqlite_store)
-    
+
     with console.status(f"Discovering '{', '.join(keywords)}'..."):
         snapshot = asyncio.run(discovery.run_keywords(label, keywords, limit=limit))
-    
-    console.print(f"[green]✓[/green] Saved snapshot [bold]{snapshot.run_id}[/bold] with {len(snapshot.events)} events.")
+
+    console.print(
+        f"[green]✓[/green] Saved snapshot [bold]{snapshot.run_id}[/bold] "
+        f"with {len(snapshot.events)} events."
+    )
 
 
 @app.command()
 def rank(
-    run_id: Annotated[str, typer.Argument(help="Run ID of the discovery to rank")],
-    provider: Annotated[str, typer.Option("--provider", "-p", help="LLM provider (ollama, openrouter)")] = "ollama",
-    dry_run: Annotated[bool, typer.Option("--dry-run", help="Use heuristic ranking without LLM")] = False,
+    run_id: Annotated[
+        str,
+        typer.Argument(help="Run ID of the discovery to rank"),
+    ],
+    provider: Annotated[
+        str,
+        typer.Option(
+            "--provider",
+            "-p",
+            help="LLM provider (ollama, openrouter)",
+        ),
+    ] = "ollama",
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            help="Use heuristic ranking without LLM",
+        ),
+    ] = False,
 ) -> None:
     """Rank a discovery snapshot using an LLM provider."""
     settings, sqlite_store = build_runtime()
     ranking_service = RankingService(settings, sqlite_store)
-    
+
     with console.status(f"Ranking snapshot {run_id} via {provider}..."):
         result = asyncio.run(
             ranking_service.rank_run(
@@ -102,13 +135,20 @@ def rank(
                 dry_run=dry_run,
             )
         )
-    
+
     console.print(f"[green]✓[/green] Ranked via {result.provider} ({result.model})")
     console.print(f"\n[bold]Summary:[/bold] {result.summary}")
     console.print("\n[bold]Top Picks:[/bold]")
     for item in result.shortlist[:5]:
-        color = "red" if item.action.endswith("no") else "green" if item.action.endswith("yes") else "yellow"
-        console.print(f"- [bold]{item.score}[/bold] | [{color}]{item.action}[/{color}] | {item.title}")
+        if item.action.endswith("no"):
+            color = "red"
+        elif item.action.endswith("yes"):
+            color = "green"
+        else:
+            color = "yellow"
+        console.print(
+            f"- [bold]{item.score}[/bold] | [{color}]{item.action}[/{color}] | {item.title}"
+        )
 
 
 if __name__ == "__main__":

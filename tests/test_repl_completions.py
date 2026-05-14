@@ -14,7 +14,7 @@ def test_command_completion() -> None:
         watchlist_names_provider=lambda: [],
         prompt_files_provider=lambda: [],
     )
-    
+
     # Slash start -> yield all commands
     doc = Document("/")
     completions = list(completer.get_completions(doc, None))

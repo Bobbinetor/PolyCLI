@@ -70,7 +70,9 @@ class PaperBroker:
         rows = self.sqlite_store.list_paper_positions(include_closed=include_closed)
         results = []
         for row in rows:
-            current_price = row["current_price"] if row["current_price"] is not None else row["entry_price"]
+            current_price = (
+                row["current_price"] if row["current_price"] is not None else row["entry_price"]
+            )
             side_multiplier = 1 if row["side"].lower() == "buy" else -1
             pnl = (current_price - row["entry_price"]) * row["size"] * side_multiplier
             results.append(

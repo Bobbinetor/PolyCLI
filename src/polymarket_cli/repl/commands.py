@@ -54,10 +54,7 @@ DETAILED_HELP = {
             ("label=", "Optional label to group the discovered events. Defaults to 'interactive'"),
             ("limit=", "Max number of events to discover. Default is 25."),
         ],
-        "examples": [
-            "/discover bitcoin election",
-            "/discover fed rates label=macro limit=10"
-        ]
+        "examples": ["/discover bitcoin election", "/discover fed rates label=macro limit=10"],
     },
     "rank": {
         "desc": "Rank the latest discovery snapshot with an LLM provider.",
@@ -68,10 +65,7 @@ DETAILED_HELP = {
             ("dry_run=", "If true, use heuristic ranking instead of LLM."),
             ("max_rows=", "Maximum number of events to send to the LLM."),
         ],
-        "examples": [
-            "/rank interactive",
-            "/rank label=macro provider=openrouter"
-        ]
+        "examples": ["/rank interactive", "/rank label=macro provider=openrouter"],
     },
     "watch": {
         "desc": "Manage configured watchlists for recurring discovery.",
@@ -86,8 +80,8 @@ DETAILED_HELP = {
         "examples": [
             "/watch list",
             "/watch add crypto bitcoin eth limit=10 every=15",
-            "/watch disable crypto"
-        ]
+            "/watch disable crypto",
+        ],
     },
     "job": {
         "desc": "Inspect or run scheduler jobs manually.",
@@ -97,10 +91,7 @@ DETAILED_HELP = {
             ("run <name>", "Run a specific scheduler job manually."),
             ("once", "Run all enabled jobs once."),
         ],
-        "examples": [
-            "/job list",
-            "/job run crypto"
-        ]
+        "examples": ["/job list", "/job run crypto"],
     },
     "export": {
         "desc": "Export SQLite data to CSV or JSON files on demand.",
@@ -114,8 +105,8 @@ DETAILED_HELP = {
         "examples": [
             "/export events interactive",
             "/export markets 20260514-193807",
-            "/export ranking interactive path=./my_ranking.json"
-        ]
+            "/export ranking interactive path=./my_ranking.json",
+        ],
     },
     "paper": {
         "desc": "Manage paper-trading positions.",
@@ -128,8 +119,8 @@ DETAILED_HELP = {
         "examples": [
             "/paper positions",
             "/paper enter event=1 market=2 outcome=Yes side=buy size=10 price=0.5",
-            "/paper close 1 0.75"
-        ]
+            "/paper close 1 0.75",
+        ],
     },
     "stream": {
         "desc": "Control the live websocket stream for the active snapshot.",
@@ -139,10 +130,7 @@ DETAILED_HELP = {
             ("stop", "Stop the live stream."),
             ("show [limit]", "Show the most recent stream messages."),
         ],
-        "examples": [
-            "/stream start",
-            "/stream show 50"
-        ]
+        "examples": ["/stream start", "/stream show 50"],
     },
     "label": {
         "desc": "Set or clear the active label for the session.",
@@ -151,10 +139,7 @@ DETAILED_HELP = {
             ("<name>", "Set the active label."),
             ("clear", "Clear the active label."),
         ],
-        "examples": [
-            "/label crypto",
-            "/label clear"
-        ]
+        "examples": ["/label crypto", "/label clear"],
     },
     "data": {
         "desc": "Show saved snapshots and data runs.",
@@ -162,41 +147,36 @@ DETAILED_HELP = {
         "options": [
             ("label=", "Filter snapshots by label."),
         ],
-        "examples": [
-            "/data",
-            "/data label=crypto"
-        ]
+        "examples": ["/data", "/data label=crypto"],
     },
     "status": {
         "desc": "Show current session status.",
         "usage": "/status",
         "options": [],
-        "examples": ["/status"]
+        "examples": ["/status"],
     },
     "help": {
         "desc": "Show available commands.",
         "usage": "/help",
         "options": [],
-        "examples": ["/help"]
+        "examples": ["/help"],
     },
     "clear": {
         "desc": "Clear the terminal screen.",
         "usage": "/clear",
         "options": [],
-        "examples": ["/clear"]
+        "examples": ["/clear"],
     },
-    "quit": {
-        "desc": "Exit the CLI.",
-        "usage": "/quit",
-        "options": [],
-        "examples": ["/quit"]
-    }
+    "quit": {"desc": "Exit the CLI.", "usage": "/quit", "options": [], "examples": ["/quit"]},
 }
 
 COMMAND_NAMES = {name for name, _, _ in HELP_SPECS}
 ALIASES: dict[str, str] = {
-    "?": "help", "exit": "help", "use": "label",
-    "jobs": "job", "ls": "watch",
+    "?": "help",
+    "exit": "help",
+    "use": "label",
+    "jobs": "job",
+    "ls": "watch",
 }
 
 
@@ -255,22 +235,22 @@ def _sync_watchlists(host) -> list[WatchlistConfig]:
 
 
 def _build_watchlist(
-    *, 
-    name: str, 
-    options: dict[str, str], 
-    existing: WatchlistConfig | None, 
-    extra_kws: list[str] | None = None
+    *,
+    name: str,
+    options: dict[str, str],
+    existing: WatchlistConfig | None,
+    extra_kws: list[str] | None = None,
 ) -> WatchlistConfig:
     baseline = existing or WatchlistConfig(name=name, keywords=[])
     kw_raw = options.get("keywords")
     tags_raw = options.get("tags")
-    
+
     kws = []
     if kw_raw is not None:
         kws.extend(parse_csv_list(kw_raw))
     elif not extra_kws:
         kws = baseline.keywords
-        
+
     if extra_kws:
         kws.extend(extra_kws)
 
@@ -402,8 +382,7 @@ def _cmd_label(host, args: list[str]) -> None:
             R.info(f"Current label: [pm.label]{host.current_label}[/]")
         else:
             R.info(
-                "No active label. Usage: [pm.accent]/label <name>[/]"
-                " or [pm.accent]/label clear[/]"
+                "No active label. Usage: [pm.accent]/label <name>[/] or [pm.accent]/label clear[/]"
             )
         return
     host.set_label(next_label)
@@ -420,21 +399,15 @@ async def _cmd_discover(host, args: list[str]) -> None:
     label = options.get("label") or host.current_label or "interactive"
     limit = _int(options.get("limit"), 25)
 
-    kw_text = ', '.join(keywords)
-    R.info(
-        f"Discovering [pm.accent]{kw_text}[/]"
-        f" → label=[pm.label]{label}[/] limit={limit}"
-    )
+    kw_text = ", ".join(keywords)
+    R.info(f"Discovering [pm.accent]{kw_text}[/] → label=[pm.label]{label}[/] limit={limit}")
     with R.spinner("Running discovery..."):
         async with GammaClient(host.settings.gamma_base_url) as gamma:
             discovery = DiscoveryService(gamma, host.sqlite_store)
             snapshot = await discovery.run_keywords(label=label, keywords=keywords, limit=limit)
 
     host.set_label(label)
-    R.success(
-        f"Snapshot [pm.accent]{snapshot.run_id}[/] saved — "
-        f"{len(snapshot.events)} events"
-    )
+    R.success(f"Snapshot [pm.accent]{snapshot.run_id}[/] saved — {len(snapshot.events)} events")
 
     # Render the events table inline
     import polars as pl
@@ -596,7 +569,9 @@ async def _cmd_job(host, args: list[str]) -> None:
             async with GammaClient(host.settings.gamma_base_url) as gamma:
                 discovery = DiscoveryService(gamma, host.sqlite_store)
                 scheduler = SchedulerService(
-                    host.settings.watchlists_path, discovery, host.sqlite_store,
+                    host.settings.watchlists_path,
+                    discovery,
+                    host.sqlite_store,
                 )
                 completed = await scheduler.run_once(job_name=job_name)
         if not completed:
@@ -657,12 +632,10 @@ def _cmd_paper(host, args: list[str]) -> None:
         return
 
     if sub == "close":
-        position_id = (
-            positional[0] if positional
-            else options.get("position") or options.get("id")
-        )
+        position_id = positional[0] if positional else options.get("position") or options.get("id")
         price_token = (
-            positional[1] if len(positional) > 1
+            positional[1]
+            if len(positional) > 1
             else options.get("price") or options.get("exit_price")
         )
         exit_price = _float(price_token)
@@ -701,20 +674,24 @@ async def _cmd_stream(host, args: list[str]) -> None:
 
 async def _cmd_export(host, args: list[str]) -> None:
     if len(args) < 2:
-        R.error("Usage: [pm.accent]/export <events|markets|ranking> <label_or_run_id> [path=...][/]")
+        R.error(
+            "Usage: [pm.accent]/export <events|markets|ranking> <label_or_run_id> [path=...][/]"
+        )
         return
-        
+
     kind = args[0].lower()
     target = args[1]
-    positional, options = _extract_options(args[2:])
-    
+    _, options = _extract_options(args[2:])
+
     if kind not in ("events", "markets", "ranking"):
         R.error("First argument must be 'events', 'markets', or 'ranking'.")
         return
 
-    # Try exact run_id first, then fallback to latest for label
-    run = host.sqlite_store.get_discovery_events(target) # This is a slight hack just to check existence, but it's safe if it returns empty list.
-    if not run: # meaning target is likely a label
+    # Try exact run_id first, then fallback to latest for label.
+    run = host.sqlite_store.get_discovery_events(target)
+    # This is a slight hack just to check existence, but it's safe if it
+    # returns an empty list.
+    if not run:  # target is likely a label
         latest = host.sqlite_store.latest_discovery_run(target)
         if latest is None:
             R.error(f"No runs found for label or run_id [pm.label]{target}[/]")
@@ -723,16 +700,17 @@ async def _cmd_export(host, args: list[str]) -> None:
     else:
         run_id = target
 
-    import polars as pl
     import json
+
+    import polars as pl
 
     output_path = options.get("path")
     if not output_path:
         ext = "json" if kind == "ranking" else "csv"
         output_path = f"./export_{kind}_{run_id}.{ext}"
-    
+
     path = Path(output_path)
-    
+
     with R.spinner(f"Exporting {kind}..."):
         if kind == "events":
             rows = host.sqlite_store.get_discovery_events(run_id)
@@ -748,7 +726,10 @@ async def _cmd_export(host, args: list[str]) -> None:
             pl.DataFrame([dict(r) for r in rows]).write_csv(path)
         elif kind == "ranking":
             with host.sqlite_store._connect() as conn:
-                row = conn.execute("SELECT * FROM ranking_runs WHERE run_id = ?", (run_id,)).fetchone()
+                row = conn.execute(
+                    "SELECT * FROM ranking_runs WHERE run_id = ?",
+                    (run_id,),
+                ).fetchone()
             if not row:
                 R.error("No ranking found for this run.")
                 return
@@ -757,5 +738,5 @@ async def _cmd_export(host, args: list[str]) -> None:
                 payload["shortlist"] = json.loads(payload["shortlist_json"])
                 del payload["shortlist_json"]
             path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-            
+
     R.success(f"Exported [pm.accent]{kind}[/] to [bold]{path}[/bold]")

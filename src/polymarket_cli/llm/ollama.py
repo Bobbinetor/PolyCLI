@@ -6,7 +6,6 @@ import httpx
 
 from polymarket_cli.llm.base import RankingAdapter
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -21,7 +20,10 @@ class OllamaRankingAdapter(RankingAdapter):
     async def generate(self, prompt: str) -> str:
         logger.info("Generating ranking with Ollama model %s", self.model)
         try:
-            async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
+            async with httpx.AsyncClient(
+                base_url=self.base_url,
+                timeout=self.timeout,
+            ) as client:
                 response = await client.post(
                     "/api/generate",
                     json={
@@ -35,18 +37,21 @@ class OllamaRankingAdapter(RankingAdapter):
                 payload = response.json()
         except httpx.ConnectError as exc:
             raise RuntimeError(
-                f"Unable to connect to Ollama at {self.base_url}. Start Ollama and ensure the API is reachable."
+                f"Unable to connect to Ollama at {self.base_url}. "
+                "Start Ollama and ensure the API is reachable."
             ) from exc
         except httpx.TimeoutException as exc:
             raise RuntimeError(
-                f"Ollama model {self.model} timed out after {self.timeout:.0f}s. Increase POLYMARKET_OLLAMA_TIMEOUT or use a smaller prompt."
+                f"Ollama model {self.model} timed out after {self.timeout:.0f}s. "
+                "Increase POLYMARKET_OLLAMA_TIMEOUT or use a smaller prompt."
             ) from exc
         except httpx.HTTPStatusError as exc:
             status_code = exc.response.status_code
             detail = exc.response.text.strip()
             if status_code == 404:
                 raise RuntimeError(
-                    f"Ollama model {self.model} was not found. Pull it first or update POLYMARKET_OLLAMA_MODEL."
+                    f"Ollama model {self.model} was not found. "
+                    "Pull it first or update POLYMARKET_OLLAMA_MODEL."
                 ) from exc
             raise RuntimeError(
                 f"Ollama request failed with status {status_code}: {detail or 'no response body'}"
