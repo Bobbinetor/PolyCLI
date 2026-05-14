@@ -1,0 +1,22 @@
+.venv/
+.local/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.DS_Store
+.env
+data/raw/
+data/processed/
+exports/
+logs/
+
+*.egg-info/
+dist/
+build/
+*.pyc
+.mypy_cache/
+
+# Real prompts are private — only the example ships
+config/prompts/*.md
+!config/prompts/prompt-example.md
+!config/prompts/README.md

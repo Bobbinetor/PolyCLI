@@ -1,0 +1,25 @@
+watchlists:
+  - name: macro-elections
+    keywords:
+      - trump
+      - election
+      - fed
+    poll_minutes: 30
+    limit: 25
+    live_only: true
+    include_closed: false
+    enabled: true
+    tags: []
+    prompt_file: default-ranking.md
+  - name: crypto-headlines
+    keywords:
+      - bitcoin
+      - ethereum
+      - solana
+    poll_minutes: 20
+    limit: 25
+    live_only: true
+    include_closed: false
+    enabled: true
+    tags: []
+    prompt_file: default-ranking.md
