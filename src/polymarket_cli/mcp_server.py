@@ -104,11 +104,22 @@ async def list_snapshots(label: str | None = None) -> list[dict[str, Any]]:
 
 
 @mcp.tool()
-async def get_snapshot_events(run_id: str) -> list[dict[str, Any]]:
-    """Get all events with raw data from a discovery snapshot."""
+async def get_snapshot_events(run_id: str) -> dict[str, Any]:
+    """Get all events from a discovery snapshot."""
     _ensure_runtime()
     events = _sqlite_store.get_discovery_events(run_id)
-    return [dict(e) for e in events]
+    return {"run_id": run_id, "events": [dict(e) for e in events]}
+
+
+@mcp.tool()
+async def get_snapshot_markets(run_id: str) -> dict[str, Any]:
+    """Get all markets from a discovery snapshot.
+    
+    Includes condition_id, which is required for forensic tools.
+    """
+    _ensure_runtime()
+    markets = _sqlite_store.get_discovery_markets(run_id)
+    return {"run_id": run_id, "markets": [dict(m) for m in markets]}
 
 
 @mcp.tool()
