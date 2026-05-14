@@ -129,7 +129,7 @@ POLYMARKET_OPENROUTER_API_KEY="sk-or-v1-..."
 POLYMARKET_OPENROUTER_MODEL="anthropic/claude-3-haiku"
 
 # Ollama (if using local ranking)
-POLYMARKET_OLLAMA_MODEL="gemma4-e4b-abliterated-Q8:latest"
+POLYMARKET_OLLAMA_MODEL="gemma3:27b"
 ```
 
 ## Custom Prompts
