@@ -1,374 +1,199 @@
-# Polymarket CLI Guide
-
-This file is the canonical usage guide for the project.
-
-Rule:
-- Whenever commands, flows, slash commands, prompts, scheduler behavior, or terminal UX change, update this file in the same change.
-
-## What this project is
-
-Polymarket CLI is a terminal-first workspace for:
-- discovery on Polymarket via Gamma API
-- recurring keyword jobs
-- CSV snapshot generation
-- LLM ranking on saved datasets
-- public live market streaming
-- paper trading simulation
-- an interactive terminal console with slash commands
-
-## Current interaction model
-
-There are two ways to use the project.
-
-1. Standard CLI commands from the shell.
-2. Interactive terminal console via `uv run polymarket tui` or `uv run polymarket console`.
-
-The interactive console is the preferred operator experience. It includes:
-- live dashboard panels
-- slash-command input
-- activity log
-- integrated websocket feed
-- keyboard shortcuts
-
-## Setup
-
-1. Install dependencies:
-
-```bash
-uv sync --extra dev
-```
-
-2. Create local environment settings if needed:
-
-```bash
-cp .env.example .env
-```
-
-3. Check configured watchlists:
-
-```bash
-uv run polymarket watchlists list
-```
-
-## Fast start
-
-1. Generate a snapshot:
-
-```bash
-uv run polymarket discover keywords bitcoin election --label smoke --limit 10
-```
-
-2. Rank the saved snapshot in heuristic mode:
-
-```bash
-uv run polymarket rank latest smoke --dry-run
-```
-
-3. Launch the interactive console:
-
-```bash
-uv run polymarket tui --label smoke
-```
-
-Or:
-
-```bash
-uv run polymarket console --label smoke
-```
-
-## Standard CLI commands
-
-### Watchlists
-
-```bash
-uv run polymarket watchlists list
-uv run polymarket watchlists add
-uv run polymarket watchlists edit crypto-headlines
-uv run polymarket watchlists enable crypto-headlines
-uv run polymarket watchlists disable crypto-headlines
-uv run polymarket watchlists remove crypto-headlines --yes
-```
-
-### Discovery
-
-```bash
-uv run polymarket discover keywords bitcoin macro --label smoke --limit 5
-uv run polymarket run-job crypto-headlines
-```
-
-### Scheduler
-
-```bash
-uv run polymarket scheduler jobs
-uv run polymarket scheduler once
-uv run polymarket scheduler once --name crypto-headlines
-uv run polymarket scheduler start --cycles 4
-uv run polymarket scheduler install crypto-headlines
-uv run polymarket scheduler remove crypto-headlines
-```
-
-### Ranking
-
-```bash
-uv run polymarket rank latest smoke --dry-run
-uv run polymarket rank latest smoke --provider ollama
-uv run polymarket rank latest smoke --provider openrouter
-```
-
-### Paper trading
-
-```bash
-uv run polymarket paper enter --event-id 1 --market-id m1 --outcome Yes --size 10 --price 0.42
-uv run polymarket paper positions
-uv run polymarket paper close POSITION_ID --exit-price 0.55
-```
-
-### Feed only
-
-```bash
-uv run polymarket stream latest smoke --limit 10
-```
-
-## Interactive console
-
-Launch it with:
-
-```bash
-uv run polymarket tui --label smoke
-```
-
-or:
-
-```bash
-uv run polymarket console --label smoke
-```
-
-### Keyboard shortcuts
-
-- `r`: refresh dashboard panels
-- `s`: restart websocket feed
-- `q`: quit
-
-### Slash commands
-
-All interactive commands start with `/`.
-
-### Core
+<div align="center">
 
 ```text
-/help
-/refresh
-/label smoke
-/label clear
-/stream restart
-/stream stop
-/quit
+    ____       _        ____ _     ___ 
+   |  _ \ ___ | |_   _  / ___| |   |_ _|
+   | |_) / _ \| | | | | | |   | |    | | 
+   |  __/ (_) | | |_| | | |___| |___ | | 
+   |_|   \___/|_|\__, | \____|_____|___|
+                 |___/  
 ```
 
-### Discovery from inside the console
+**Investigative observatory for Polymarket. Discover, rank with LLMs, simulate, and stream live markets.**
 
+[![CI](https://img.shields.io/github/actions/workflow/status/bobbinetor/polycli/ci.yml?branch=main)](https://github.com/bobbinetor/polycli/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/polycli.svg)](https://pypi.org/project/polycli/)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+</div>
+
+## What is PolyCLI?
+
+PolyCLI is a terminal-based intelligence tool for Polymarket. It allows researchers to continuously scan the prediction market ecosystem, rank markets for risk or opportunity using local AI (Ollama) or cloud models (OpenRouter), and simulate trading strategies via paper trading.
+
+### PolyCLI vs Official Polymarket CLI
+
+The [official Polymarket CLI](https://github.com/Polymarket/polymarket-cli) is a Rust-based trading terminal. It requires your private key, manages wallets, and places real on-chain orders.
+
+**PolyCLI is the research layer.** It is an investigative companion tool. You do not need a wallet or private key to use PolyCLI. You use PolyCLI to discover, rank, and monitor markets, and then you use the official CLI (or the web UI) to execute your trades.
+
+| Feature | Official `polymarket-cli` | PolyCLI |
+|---|---|---|
+| **Purpose** | Trading Terminal | Investigative Observatory |
+| **Authentication** | Private Key | None (Uses Public APIs) |
+| **Trading** | Real On-chain Orders | Paper Trading (Simulation) |
+| **Market Discovery** | Basic Search | Advanced Keyword + Watchlist Scans |
+| **AI Integration** | None | Local/Cloud LLM Ranking |
+| **Data Storage** | Live Queries Only | Persistent SQLite Snapshots |
+
+---
+
+## Features
+
+- 🕵️ **Market Discovery**: Bulk search the Gamma API across multiple keywords and labels.
+- 🧠 **LLM Risk Ranking**: Pipe snapshots through Ollama or OpenRouter to find anomalies, wash-trading risks, or edge cases based on custom prompts.
+- 📉 **Paper Trading**: Simulate entering and closing positions at live prices without risk.
+- 📡 **Live Streaming**: Connect to the Polymarket WebSocket to watch order book changes in real time.
+- ⏰ **Watchlists**: Schedule background discovery jobs that poll at set intervals.
+- 💻 **Claude-style REPL**: A highly responsive, interactive terminal loop with auto-complete and bottom-bar syntax hinting.
+
+---
+
+## Quick Start
+
+### Installation
+
+The recommended way to install PolyCLI is using `pipx` or `uv`:
+
+```bash
+# Using pipx
+pipx install polycli
+
+# Using uv
+uv tool install polycli
+```
+
+### Usage
+
+Simply run `polycli` to drop into the interactive REPL:
+
+```bash
+polycli
+```
+
+Once inside the REPL, try:
 ```text
-/discover bitcoin election label=smoke limit=5
-/discover trump fed label=macro-live limit=20
+/discover bitcoin solana limit=50
+/rank provider=ollama
+/data
 ```
 
-Behavior:
-- saves a fresh raw JSON snapshot
-- saves `events.csv` and `markets.csv`
-- updates the dashboard label focus
-- restarts the integrated live feed on the new snapshot
-
-### Ranking from inside the console
-
-```text
-/rank label=smoke provider=ollama dry_run=true
-/rank label=smoke provider=openrouter prompt=default-ranking.md
-```
-
-### Watchlist management from inside the console
-
-```text
-/watch list
-/watch add alpha keywords=bitcoin,fed every=15 limit=12 live=true enabled=true
-/watch edit alpha keywords=bitcoin,fed,election every=20
-/watch enable alpha
-/watch disable alpha
-/watch remove alpha
-```
-
-Supported watch options:
-- `keywords=bitcoin,fed`
-- `every=15`
-- `limit=25`
-- `live=true|false`
-- `closed=true|false`
-- `enabled=true|false`
-- `tags=crypto,macro`
-- `prompt=default-ranking.md`
-
-### Job execution from inside the console
-
-```text
-/job list
-/job run crypto-headlines
-/job run
-```
-
-`/job run` without a name runs all enabled watchlists once.
-
-### Paper trading from inside the console
-
-```text
-/paper positions
-/paper positions all=true
-/paper enter event=1 market=m1 outcome=Yes side=buy size=10 price=0.42
-/paper enter event=1 market=m1 outcome=Yes side=buy size=10 label=smoke
-/paper close POSITION_ID 0.55
-```
-
-If `price` is omitted, the console tries to infer it from the latest `markets.csv` for the selected label.
-
-## Files and data layout
-
-- `config/watchlists.yaml`: editable keyword jobs
-- `config/prompts/default-ranking.md`: prompt template for ranking
-- `data/raw/<label>/...json`: raw discovery payloads
-- `data/processed/<label>/<run-id>/events.csv`: normalized events snapshot
-- `data/processed/<label>/<run-id>/markets.csv`: normalized markets snapshot
-- `exports/<label>/ranking.json`: latest ranking report
-- `.local/state.db`: watch jobs, discovery runs, ranking runs, paper positions
-
-## Notes
-
-- Gamma discovery is unauthenticated and uses `/public-search` plus `/events/keyset`.
-- The console auto-starts the public market websocket from the latest discovery snapshot for the active label.
-- Live order placement is intentionally not implemented. Trading is paper-only for now.
-
-## Testing
-
-Run all tests:
-
+For scripting or CI, you can also run single commands directly:
 ```bash
-uv run pytest
+polycli discover bitcoin --limit 10
+polycli rank cli --provider ollama
 ```
 
-Minimal manual test flow:
+---
 
-```bash
-uv run polymarket discover keywords bitcoin election --label tui-smoke --limit 5
-uv run polymarket rank latest tui-smoke --dry-run
-uv run polymarket tui --label tui-smoke
+## Command Reference
+
+Inside the REPL, type `/help` to see all commands, or type `--help` after any command for detailed usage.
+
+| Command | Description |
+|---|---|
+| `/discover <kw...>` | Run a keyword discovery against the API. |
+| `/rank` | Rank the latest snapshot with an LLM. |
+| `/watch <subcommand>` | Manage recurring watchlists (`list`, `add`, `edit`). |
+| `/job <subcommand>` | Run scheduled jobs. |
+| `/paper <subcommand>` | Manage paper-trading positions (`enter`, `close`, `positions`). |
+| `/stream <subcommand>`| Control the live websocket stream. |
+| `/data` | View past snapshots. |
+| `/export` | Export SQLite data to CSV or JSON. |
+
+---
+
+## Architecture
+
+PolyCLI runs on a unified SQLite storage backend. We don't spam your filesystem with CSVs.
+
+```mermaid
+graph TD
+    API["Polymarket Gamma API"] -->|JSON| Discovery["Discovery Service"]
+    Discovery -->|Persists| DB[("SQLite: polycli.db")]
+    DB -->|"Reads Events"| Ranking["Ranking Service"]
+    Prompt["Custom Markdown Prompt"] --> Ranking
+    LLM(("Ollama / OpenRouter")) <-->|"Scores & Thesis"| Ranking
+    Ranking -->|"Persists Shortlist"| DB
+    DB -->|"On Demand"| Export["CSV/JSON Exports"]
 ```
 
-Inside the console, then try:
+## Configuration
 
-```text
-/help
-/watch list
-/rank label=tui-smoke dry_run=true provider=ollama
-/paper positions
+PolyCLI looks for an `.env` file in your working directory. You can also set these as environment variables. See `.env.example` for all options.
+
+```env
+# OpenRouter (if using cloud ranking)
+POLYMARKET_OPENROUTER_API_KEY="sk-or-v1-..."
+POLYMARKET_OPENROUTER_MODEL="anthropic/claude-3-haiku"
+
+# Ollama (if using local ranking)
+POLYMARKET_OLLAMA_MODEL="gemma4-e4b-abliterated-Q8:latest"
 ```
 
-## Flusso completo pratico
+## Custom Prompts
 
-Questo e` il flusso end-to-end consigliato per usare il progetto da zero fino alla TUI interattiva.
+PolyCLI uses a markdown file to instruct the LLM on how to rank events. The default example is located in `config/prompts/prompt-example.md`.
 
-1. Installa le dipendenze:
+You can create your own prompt files to look for specific patterns (e.g., political arbitrage, wash trading) and point PolyCLI to it via the `.env` file (`POLYMARKET_DEFAULT_PROMPT_PATH`).
 
-```bash
-uv sync --extra dev
+---
+
+## 🤖 MCP Server (Model Context Protocol)
+
+PolyCLI natively ships with an **MCP Server**, allowing AI assistants (like Claude Desktop or Cursor) to use PolyCLI as a tool to query Polymarket and rank events directly in your chat!
+
+### Claude Desktop Configuration
+
+Edit your Claude Desktop config file:
+- **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+
+Add the `polycli` server:
+
+```json
+{
+  "mcpServers": {
+    "polycli": {
+      "command": "uv",
+      "args": [
+        "tool",
+        "run",
+        "polycli-mcp"
+      ]
+    }
+  }
+}
 ```
 
-2. Crea il file ambiente locale se vuoi configurare Ollama o OpenRouter:
+Once configured, you can ask Claude: 
+*"Use PolyCLI to discover the latest markets about 'AI', rank them for me, and then investigate the top holders of the riskiest market to see what else they are trading."*
 
-```bash
-cp .env.example .env
-```
+### Available MCP Tools
 
-3. Controlla o crea una watchlist:
+PolyCLI provides a comprehensive suite of tools for both market discovery and forensic wallet investigation.
 
-```bash
-uv run polymarket watchlists list
-uv run polymarket watchlists add
-```
+#### Discovery & Ranking
+- `discover_markets(keywords, limit, label)`: Search Polymarket for events.
+- `list_snapshots(label)`: List historical snapshots.
+- `get_snapshot_events(run_id)`: Retrieve raw market data.
+- `rank_snapshot(run_id, provider, dry_run, max_rows)`: Run the ranking engine on a snapshot.
 
-Esempio watchlist pratica:
-- nome: crypto-headlines
-- keywords: bitcoin, ethereum, solana
-- poll interval: 20
-- limit: 25
-- live only: yes
-- include closed: no
-- enabled: yes
+#### Forensic Investigation
+- `profile_wallet(address)`: Look up public profile info (pseudonym, bio, X/Twitter).
+- `get_wallet_positions(address)`: See all current open positions for a wallet.
+- `get_wallet_trades(address)`: Get the full trade history to detect suspicious patterns.
+- `get_wallet_portfolio_value(address)`: Quickly assess whale vs. retail.
+- `get_market_top_holders(condition_id)`: See who controls a specific market.
+- `get_price_history(clob_token_id)`: Analyze historical price movements and volume spikes.
 
-4. Fai una discovery iniziale manuale per avere subito dati da vedere:
+---
 
-```bash
-uv run polymarket discover keywords bitcoin election --label demo --limit 8
-```
+## Development
 
-Questo comando salva:
-- raw JSON in `data/raw/demo/...json`
-- eventi in `data/processed/demo/.../events.csv`
-- mercati in `data/processed/demo/.../markets.csv`
+See [CONTRIBUTING.md](CONTRIBUTING.md) for instructions on setting up the local development environment, running tests, and contributing to PolyCLI.
 
-5. Fai una scrematura iniziale dei risultati:
+## License
 
-```bash
-uv run polymarket rank latest demo --dry-run
-```
-
-Se hai Ollama o OpenRouter configurati, puoi usare anche:
-
-```bash
-uv run polymarket rank latest demo --provider ollama
-uv run polymarket rank latest demo --provider openrouter
-```
-
-6. Avvia la TUI interattiva con il label appena creato:
-
-```bash
-uv run polymarket tui --label demo
-```
-
-7. Dentro la TUI usa questo percorso pratico:
-
-```text
-/help
-/watch list
-/discover bitcoin fed label=macro limit=6
-/rank label=macro provider=ollama dry_run=true
-/paper positions
-/stream restart
-```
-
-8. Esempio pratico completo dentro la TUI:
-
-```text
-/discover bitcoin election label=demo limit=5
-/rank label=demo provider=ollama dry_run=true
-/paper enter event=1 market=m1 outcome=Yes side=buy size=10 label=demo
-/paper positions
-```
-
-9. Se vuoi automatizzare la discovery:
-
-```bash
-uv run polymarket scheduler jobs
-uv run polymarket scheduler once --name crypto-headlines
-uv run polymarket scheduler install crypto-headlines
-```
-
-10. Se vuoi solo il feed live senza TUI:
-
-```bash
-uv run polymarket stream latest demo --limit 10 --max-messages 20
-```
-
-Riassunto operativo:
-- usa `discover` per creare snapshot
-- usa `rank` per scremare gli eventi piu` interessanti
-- usa `tui` per controllare feed live, slash commands e stato dei job
-- usa `paper` per simulare entrate e uscite
-- usa `scheduler` per rendere persistente il processo di discovery
-
+MIT License. See [LICENSE](LICENSE) for details.

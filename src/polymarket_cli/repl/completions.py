@@ -43,6 +43,10 @@ COMMANDS: dict[str, dict[str, Any]] = {
         "summary": "Control the live websocket stream",
         "subs": ["start", "stop", "show"],
     },
+    "export": {
+        "summary": "Export SQLite data to CSV or JSON",
+        "subs": ["events", "markets", "ranking"],
+    },
     "clear": {"summary": "Clear the terminal screen", "subs": []},
     "quit": {"summary": "Exit the CLI", "subs": []},
 }

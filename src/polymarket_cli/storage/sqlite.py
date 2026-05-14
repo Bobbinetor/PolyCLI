@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from polymarket_cli.config import WatchlistConfig
 from polymarket_cli.domain.models import DiscoverySnapshot, RankingResult, WatchJobState
@@ -36,10 +38,53 @@ class SQLiteStore:
                     run_id TEXT PRIMARY KEY,
                     label TEXT NOT NULL,
                     keywords TEXT NOT NULL,
-                    events_csv_path TEXT,
-                    markets_csv_path TEXT,
-                    raw_path TEXT,
+                    event_count INTEGER NOT NULL,
                     created_at TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS events (
+                    run_id TEXT NOT NULL,
+                    event_id TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    slug TEXT,
+                    description TEXT,
+                    active INTEGER,
+                    closed INTEGER,
+                    live INTEGER,
+                    category TEXT,
+                    start_date TEXT,
+                    end_date TEXT,
+                    volume REAL,
+                    liquidity REAL,
+                    open_interest REAL,
+                    tags TEXT,
+                    keyword_hits TEXT,
+                    market_count INTEGER,
+                    PRIMARY KEY (run_id, event_id),
+                    FOREIGN KEY (run_id) REFERENCES discovery_runs(run_id)
+                );
+
+                CREATE TABLE IF NOT EXISTS markets (
+                    run_id TEXT NOT NULL,
+                    event_id TEXT NOT NULL,
+                    market_id TEXT NOT NULL,
+                    question TEXT NOT NULL,
+                    slug TEXT,
+                    condition_id TEXT,
+                    active INTEGER,
+                    closed INTEGER,
+                    end_date TEXT,
+                    volume REAL,
+                    liquidity REAL,
+                    best_bid REAL,
+                    best_ask REAL,
+                    last_trade_price REAL,
+                    outcomes TEXT,
+                    outcome_prices TEXT,
+                    clob_token_ids TEXT,
+                    tags TEXT,
+                    PRIMARY KEY (run_id, market_id),
+                    FOREIGN KEY (run_id) REFERENCES discovery_runs(run_id)
                 );
 
                 CREATE TABLE IF NOT EXISTS ranking_runs (
@@ -47,7 +92,9 @@ class SQLiteStore:
                     provider TEXT NOT NULL,
                     model TEXT NOT NULL,
                     summary TEXT NOT NULL,
-                    created_at TEXT NOT NULL
+                    shortlist_json TEXT,
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY (run_id) REFERENCES discovery_runs(run_id)
                 );
 
                 CREATE TABLE IF NOT EXISTS paper_positions (
@@ -113,21 +160,81 @@ class SQLiteStore:
 
     def record_discovery_run(self, snapshot: DiscoverySnapshot) -> None:
         with self._connect() as connection:
+            # 1. Insert run metadata
             connection.execute(
                 """
-                INSERT INTO discovery_runs (run_id, label, keywords, events_csv_path, markets_csv_path, raw_path, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO discovery_runs (run_id, label, keywords, event_count, created_at)
+                VALUES (?, ?, ?, ?, ?)
                 """,
                 (
                     snapshot.run_id,
                     snapshot.label,
                     ",".join(snapshot.keywords),
-                    snapshot.events_csv_path,
-                    snapshot.markets_csv_path,
-                    snapshot.raw_path,
+                    len(snapshot.events),
                     snapshot.created_at.isoformat(),
                 ),
             )
+
+            # 2. Insert events and markets
+            for event in snapshot.events:
+                connection.execute(
+                    """
+                    INSERT INTO events (
+                        run_id, event_id, title, slug, description, active, closed, live, category,
+                        start_date, end_date, volume, liquidity, open_interest, tags, keyword_hits, market_count
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        snapshot.run_id,
+                        event.id,
+                        event.title,
+                        event.slug,
+                        event.description,
+                        1 if event.active else 0,
+                        1 if event.closed else 0,
+                        1 if event.live else 0,
+                        event.category,
+                        event.start_date.isoformat() if event.start_date else None,
+                        event.end_date.isoformat() if event.end_date else None,
+                        event.volume,
+                        event.liquidity,
+                        event.open_interest,
+                        ",".join(event.tags),
+                        ",".join(event.keyword_hits),
+                        event.market_count(),
+                    )
+                )
+
+                for market in event.markets:
+                    connection.execute(
+                        """
+                        INSERT INTO markets (
+                            run_id, event_id, market_id, question, slug, condition_id, active, closed,
+                            end_date, volume, liquidity, best_bid, best_ask, last_trade_price,
+                            outcomes, outcome_prices, clob_token_ids, tags
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            snapshot.run_id,
+                            event.id,
+                            market.id,
+                            market.question,
+                            market.slug,
+                            market.condition_id,
+                            1 if market.active else 0,
+                            1 if market.closed else 0,
+                            market.end_date.isoformat() if market.end_date else None,
+                            market.volume,
+                            market.liquidity,
+                            market.best_bid,
+                            market.best_ask,
+                            market.last_trade_price,
+                            ",".join(market.outcomes),
+                            ",".join(str(p) for p in market.outcome_prices),
+                            ",".join(market.clob_token_ids),
+                            ",".join(market.tags),
+                        )
+                    )
 
     def latest_discovery_run(self, label: str | None = None) -> sqlite3.Row | None:
         query = "SELECT * FROM discovery_runs"
@@ -140,11 +247,20 @@ class SQLiteStore:
         with self._connect() as connection:
             return connection.execute(query, params).fetchone()
 
+    def get_discovery_events(self, run_id: str) -> list[sqlite3.Row]:
+        query = "SELECT * FROM events WHERE run_id = ?"
+        with self._connect() as connection:
+            return connection.execute(query, (run_id,)).fetchall()
+
+    def get_discovery_markets(self, run_id: str) -> list[sqlite3.Row]:
+        query = "SELECT * FROM markets WHERE run_id = ?"
+        with self._connect() as connection:
+            return connection.execute(query, (run_id,)).fetchall()
+
     def list_discovery_runs(self, label: str | None = None) -> list[dict[str, Any]]:
         query = """
-            SELECT d.run_id, d.label, d.keywords, d.created_at, 
-                   (SELECT count(*) FROM ranking_runs r WHERE r.run_id = d.run_id) as has_ranking,
-                   25 as event_count -- placeholder since we don't store count directly
+            SELECT d.run_id, d.label, d.keywords, d.created_at, d.event_count,
+                   (SELECT count(*) FROM ranking_runs r WHERE r.run_id = d.run_id) as has_ranking
             FROM discovery_runs d
         """
         params: tuple[str, ...] = ()
@@ -161,14 +277,21 @@ class SQLiteStore:
         with self._connect() as connection:
             connection.execute(
                 """
-                INSERT INTO ranking_runs (run_id, provider, model, summary, created_at)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO ranking_runs (run_id, provider, model, summary, shortlist_json, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(run_id) DO UPDATE SET
+                    provider=excluded.provider,
+                    model=excluded.model,
+                    summary=excluded.summary,
+                    shortlist_json=excluded.shortlist_json,
+                    created_at=excluded.created_at
                 """,
                 (
                     run_id,
                     ranking.provider,
                     ranking.model,
                     ranking.summary,
+                    json.dumps([item.model_dump() for item in ranking.shortlist]),
                     datetime.now(UTC).isoformat(),
                 ),
             )
@@ -231,4 +354,3 @@ class SQLiteStore:
         query += " ORDER BY opened_at DESC"
         with self._connect() as connection:
             return connection.execute(query).fetchall()
-

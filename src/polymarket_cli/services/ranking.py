@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from uuid import uuid4
 
 import polars as pl
 from pydantic import ValidationError
@@ -13,7 +12,6 @@ from polymarket_cli.domain.models import RankingItem, RankingResult
 from polymarket_cli.llm.base import RankingAdapter, extract_json_object
 from polymarket_cli.llm.ollama import OllamaRankingAdapter
 from polymarket_cli.llm.openrouter import OpenRouterRankingAdapter
-from polymarket_cli.storage.csv_store import CSVStore
 from polymarket_cli.storage.sqlite import SQLiteStore
 
 
@@ -40,9 +38,8 @@ def build_adapter(settings: Settings, provider: str) -> RankingAdapter:
 
 
 class RankingService:
-    def __init__(self, settings: Settings, csv_store: CSVStore, sqlite_store: SQLiteStore) -> None:
+    def __init__(self, settings: Settings, sqlite_store: SQLiteStore) -> None:
         self.settings = settings
-        self.csv_store = csv_store
         self.sqlite_store = sqlite_store
 
     def _heuristic_rank(self, frame: pl.DataFrame) -> RankingResult:
@@ -75,7 +72,7 @@ class RankingService:
         rows = frame.to_dicts()
         return (
             f"{prompt_template.strip()}\n\n"
-            "CSV rows (JSON records):\n"
+            "Records:\n"
             f"{json.dumps(rows, indent=2)}"
         )
 
@@ -101,18 +98,20 @@ class RankingService:
             coerced["risks"] = [risks]
         return coerced
 
-    async def rank_csv(
+    async def rank_run(
         self,
         *,
-        label: str,
-        csv_path: Path,
+        run_id: str,
         prompt_path: Path,
         provider: str,
         dry_run: bool = False,
         max_rows: int | None = None,
-    ) -> tuple[str, RankingResult, Path]:
+    ) -> RankingResult:
         resolved_max_rows = max_rows if max_rows is not None else self.settings.ranking_max_rows
-        frame = pl.read_csv(csv_path).head(max(1, resolved_max_rows))
+        
+        events = self.sqlite_store.get_discovery_events(run_id)
+        frame = pl.DataFrame([dict(row) for row in events]).head(max(1, resolved_max_rows))
+        
         if dry_run or frame.is_empty():
             ranking = self._heuristic_rank(frame)
         else:
@@ -140,7 +139,5 @@ class RankingService:
                     }
                 )
 
-        run_id = uuid4().hex[:12]
-        report_path = self.csv_store.write_ranking_report(label, ranking)
         self.sqlite_store.record_ranking_run(run_id, ranking)
-        return run_id, ranking, report_path
+        return ranking

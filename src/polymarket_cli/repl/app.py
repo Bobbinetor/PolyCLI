@@ -26,7 +26,6 @@ from polymarket_cli.config import Settings, load_watchlists
 from polymarket_cli.repl import renderer as R
 from polymarket_cli.repl.commands import dispatch
 from polymarket_cli.repl.completions import ReplCompleter
-from polymarket_cli.storage.csv_store import CSVStore
 from polymarket_cli.storage.sqlite import SQLiteStore
 from polymarket_cli.streams.polymarket_ws import (
     MarketStreamClient,
@@ -41,12 +40,10 @@ class ReplApp:
         self,
         settings: Settings,
         sqlite_store: SQLiteStore,
-        csv_store: CSVStore,
         label: str | None = None,
     ) -> None:
         self.settings = settings
         self.sqlite_store = sqlite_store
-        self.csv_store = csv_store
         self.current_label = label
         self.llm_state = f"ollama:{settings.ollama_model}"
         self.stream_client = MarketStreamClient()
@@ -82,17 +79,17 @@ class ReplApp:
 
     def start_stream(self) -> None:
         """Start or restart the background websocket stream."""
-        latest = self.sqlite_store.latest_discovery_run(
-            self.current_label,
-        )
-        if latest is None or not latest["markets_csv_path"]:
-            R.warn("No markets CSV available. Run /discover first.")
+        latest = self.sqlite_store.latest_discovery_run(self.current_label)
+        if latest is None:
+            R.warn("No snapshots available. Run /discover first.")
             return
-        markets_path = Path(latest["markets_csv_path"])
-        if not markets_path.exists():
-            R.warn(f"Markets CSV not found: {markets_path}")
+            
+        markets = self.sqlite_store.get_discovery_markets(latest["run_id"])
+        if not markets:
+            R.warn("No markets found in this snapshot.")
             return
-        source = str(markets_path.resolve())
+            
+        source = f"sqlite:{latest['run_id']}"
         if (
             self._stream_source == source
             and self._stream_task
@@ -100,11 +97,12 @@ class ReplApp:
         ):
             R.info("Stream already running for this snapshot.")
             return
+            
         self._stop_stream_task()
         self._stream_source = source
-        asset_ids = load_asset_ids(markets_path, limit=12)
+        asset_ids = [m["condition_id"] for m in markets if m["condition_id"]][:12]
         if not asset_ids:
-            R.warn("No asset IDs found in the markets CSV.")
+            R.warn("No valid condition IDs found in the markets.")
             return
         self.stream_status = f"streaming {len(asset_ids)} assets"
         R.success(
@@ -238,18 +236,19 @@ class ReplApp:
 
     def _auto_start_stream(self) -> None:
         """Silently start the stream if data is available."""
-        latest = self.sqlite_store.latest_discovery_run(
-            self.current_label,
-        )
-        if latest is None or not latest["markets_csv_path"]:
+        latest = self.sqlite_store.latest_discovery_run(self.current_label)
+        if latest is None:
             return
-        markets_path = Path(latest["markets_csv_path"])
-        if not markets_path.exists():
+            
+        markets = self.sqlite_store.get_discovery_markets(latest["run_id"])
+        if not markets:
             return
-        asset_ids = load_asset_ids(markets_path, limit=12)
+            
+        asset_ids = [m["condition_id"] for m in markets if m["condition_id"]][:12]
         if not asset_ids:
             return
-        self._stream_source = str(markets_path.resolve())
+            
+        self._stream_source = f"sqlite:{latest['run_id']}"
         self.stream_status = f"streaming {len(asset_ids)} assets"
         self._stream_task = asyncio.get_event_loop().create_task(
             self._run_stream(asset_ids)

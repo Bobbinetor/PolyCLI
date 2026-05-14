@@ -40,6 +40,7 @@ HELP_SPECS: list[tuple[str, str, str]] = [
     ("job", "/job <list|run|once> [name]", "Inspect or run scheduler jobs"),
     ("paper", "/paper <positions|enter|close>", "Manage paper-trading positions"),
     ("stream", "/stream <start|stop|show>", "Control the live websocket stream"),
+    ("export", "/export <events|markets|ranking> <label|run_id>", "Export data to CSV/JSON"),
     ("clear", "/clear", "Clear the terminal screen"),
     ("quit", "/quit", "Exit the CLI"),
 ]
@@ -99,6 +100,21 @@ DETAILED_HELP = {
         "examples": [
             "/job list",
             "/job run crypto"
+        ]
+    },
+    "export": {
+        "desc": "Export SQLite data to CSV or JSON files on demand.",
+        "usage": "/export <events|markets|ranking> <label_or_run_id> [path=...]",
+        "options": [
+            ("events", "Export event metadata to CSV."),
+            ("markets", "Export market metadata to CSV."),
+            ("ranking", "Export ranking shortlist to JSON."),
+            ("path=", "Optional exact file path to write to."),
+        ],
+        "examples": [
+            "/export events interactive",
+            "/export markets 20260514-193807",
+            "/export ranking interactive path=./my_ranking.json"
         ]
     },
     "paper": {
@@ -339,6 +355,8 @@ async def dispatch(host, raw: str) -> None:
             await _cmd_rank(host, args)
         elif name == "watch":
             _cmd_watch(host, args)
+        elif name == "export":
+            await _cmd_export(host, args)
         elif name == "job":
             await _cmd_job(host, args)
         elif name == "paper":
@@ -409,7 +427,7 @@ async def _cmd_discover(host, args: list[str]) -> None:
     )
     with R.spinner("Running discovery..."):
         async with GammaClient(host.settings.gamma_base_url) as gamma:
-            discovery = DiscoveryService(gamma, host.csv_store, host.sqlite_store)
+            discovery = DiscoveryService(gamma, host.sqlite_store)
             snapshot = await discovery.run_keywords(label=label, keywords=keywords, limit=limit)
 
     host.set_label(label)
@@ -421,8 +439,9 @@ async def _cmd_discover(host, args: list[str]) -> None:
     # Render the events table inline
     import polars as pl
 
-    if snapshot.events_csv_path and Path(snapshot.events_csv_path).exists():
-        frame = pl.read_csv(snapshot.events_csv_path).head(25)
+    events = host.sqlite_store.get_discovery_events(snapshot.run_id)
+    if events:
+        frame = pl.DataFrame([dict(e) for e in events]).head(25)
         R.render_events_table(frame.to_dicts(), title=f"Discovery: {label}")
 
 
@@ -460,7 +479,7 @@ async def _cmd_rank(host, args: list[str]) -> None:
         return
 
     latest = host.sqlite_store.latest_discovery_run(label)
-    if latest is None or not latest["events_csv_path"]:
+    if latest is None:
         R.error(f"No discovery snapshot found for label [pm.label]{label}[/]")
         return
 
@@ -468,10 +487,9 @@ async def _cmd_rank(host, args: list[str]) -> None:
     R.info(f"Ranking [pm.label]{label}[/] via [pm.accent]{mode}[/] (max_rows={max_rows})")
 
     with R.spinner(f"Ranking via {mode}..."):
-        ranking_service = RankingService(host.settings, host.csv_store, host.sqlite_store)
-        run_id, ranking, report_path = await ranking_service.rank_csv(
-            label=label,
-            csv_path=Path(latest["events_csv_path"]),
+        ranking_service = RankingService(host.settings, host.sqlite_store)
+        ranking = await ranking_service.rank_run(
+            run_id=latest["run_id"],
             prompt_path=prompt_path,
             provider=provider,
             dry_run=dry_run,
@@ -480,9 +498,8 @@ async def _cmd_rank(host, args: list[str]) -> None:
 
     host.set_label(label)
     host.llm_state = f"{ranking.provider}:{ranking.model}"
-    R.success(f"Ranking [pm.accent]{run_id}[/] complete")
+    R.success(f"Ranking [pm.accent]{latest['run_id']}[/] complete")
     R.render_ranking_table(ranking.shortlist, ranking.summary, ranking.provider, ranking.model)
-    R.muted(f"Report saved to {report_path}")
 
 
 def _cmd_watch(host, args: list[str]) -> None:
@@ -577,7 +594,7 @@ async def _cmd_job(host, args: list[str]) -> None:
         R.info(msg)
         with R.spinner("Executing scheduler jobs..."):
             async with GammaClient(host.settings.gamma_base_url) as gamma:
-                discovery = DiscoveryService(gamma, host.csv_store, host.sqlite_store)
+                discovery = DiscoveryService(gamma, host.sqlite_store)
                 scheduler = SchedulerService(
                     host.settings.watchlists_path, discovery, host.sqlite_store,
                 )
@@ -680,3 +697,65 @@ async def _cmd_stream(host, args: list[str]) -> None:
         return
 
     R.error(f"Unknown subcommand: {sub}. Try [pm.accent]/stream show[/].")
+
+
+async def _cmd_export(host, args: list[str]) -> None:
+    if len(args) < 2:
+        R.error("Usage: [pm.accent]/export <events|markets|ranking> <label_or_run_id> [path=...][/]")
+        return
+        
+    kind = args[0].lower()
+    target = args[1]
+    positional, options = _extract_options(args[2:])
+    
+    if kind not in ("events", "markets", "ranking"):
+        R.error("First argument must be 'events', 'markets', or 'ranking'.")
+        return
+
+    # Try exact run_id first, then fallback to latest for label
+    run = host.sqlite_store.get_discovery_events(target) # This is a slight hack just to check existence, but it's safe if it returns empty list.
+    if not run: # meaning target is likely a label
+        latest = host.sqlite_store.latest_discovery_run(target)
+        if latest is None:
+            R.error(f"No runs found for label or run_id [pm.label]{target}[/]")
+            return
+        run_id = latest["run_id"]
+    else:
+        run_id = target
+
+    import polars as pl
+    import json
+
+    output_path = options.get("path")
+    if not output_path:
+        ext = "json" if kind == "ranking" else "csv"
+        output_path = f"./export_{kind}_{run_id}.{ext}"
+    
+    path = Path(output_path)
+    
+    with R.spinner(f"Exporting {kind}..."):
+        if kind == "events":
+            rows = host.sqlite_store.get_discovery_events(run_id)
+            if not rows:
+                R.error("No events found.")
+                return
+            pl.DataFrame([dict(r) for r in rows]).write_csv(path)
+        elif kind == "markets":
+            rows = host.sqlite_store.get_discovery_markets(run_id)
+            if not rows:
+                R.error("No markets found.")
+                return
+            pl.DataFrame([dict(r) for r in rows]).write_csv(path)
+        elif kind == "ranking":
+            with host.sqlite_store._connect() as conn:
+                row = conn.execute("SELECT * FROM ranking_runs WHERE run_id = ?", (run_id,)).fetchone()
+            if not row:
+                R.error("No ranking found for this run.")
+                return
+            payload = dict(row)
+            if "shortlist_json" in payload and payload["shortlist_json"]:
+                payload["shortlist"] = json.loads(payload["shortlist_json"])
+                del payload["shortlist_json"]
+            path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+            
+    R.success(f"Exported [pm.accent]{kind}[/] to [bold]{path}[/bold]")

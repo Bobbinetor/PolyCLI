@@ -5,7 +5,6 @@ import pytest
 from polymarket_cli.config import Settings
 from polymarket_cli.domain.models import RankingResult
 from polymarket_cli.services.ranking import RankingService
-from polymarket_cli.storage.csv_store import CSVStore
 from polymarket_cli.storage.sqlite import SQLiteStore
 
 
@@ -13,30 +12,26 @@ from polymarket_cli.storage.sqlite import SQLiteStore
 async def test_ranking_service_heuristic_mode(tmp_path: Path) -> None:
     settings = Settings(workdir=tmp_path)
     settings.ensure_directories()
-    csv_store = CSVStore(settings.raw_data_path, settings.processed_data_path, settings.exports_path)
     sqlite_store = SQLiteStore(settings.database_path)
-    ranking_service = RankingService(settings, csv_store, sqlite_store)
+    ranking_service = RankingService(settings, sqlite_store)
 
-    csv_path = tmp_path / "events.csv"
-    csv_path.write_text(
-        "event_id,title,volume,liquidity,live\n1,BTC market,4000,800,true\n2,ETH market,1000,200,false\n",
-        encoding="utf-8",
-    )
+    sqlite_store.get_discovery_events = lambda run_id: [
+        {"event_id": "1", "title": "BTC market", "volume": 4000, "liquidity": 800, "live": 1},
+        {"event_id": "2", "title": "ETH market", "volume": 1000, "liquidity": 200, "live": 0},
+    ]
+    
     prompt_path = tmp_path / "prompt.md"
     prompt_path.write_text("Rank these events", encoding="utf-8")
 
-    run_id, ranking, report_path = await ranking_service.rank_csv(
-        label="crypto",
-        csv_path=csv_path,
+    ranking = await ranking_service.rank_run(
+        run_id="fake-run",
         prompt_path=prompt_path,
         provider="ollama",
         dry_run=True,
     )
 
-    assert run_id
     assert ranking.provider == "heuristic"
     assert ranking.shortlist[0].event_id == "1"
-    assert report_path.exists()
 
 
 @pytest.mark.asyncio
@@ -46,15 +41,12 @@ async def test_ranking_service_falls_back_when_llm_returns_invalid_json(
 ) -> None:
     settings = Settings(workdir=tmp_path)
     settings.ensure_directories()
-    csv_store = CSVStore(settings.raw_data_path, settings.processed_data_path, settings.exports_path)
     sqlite_store = SQLiteStore(settings.database_path)
-    ranking_service = RankingService(settings, csv_store, sqlite_store)
+    ranking_service = RankingService(settings, sqlite_store)
 
-    csv_path = tmp_path / "events.csv"
-    csv_path.write_text(
-        "event_id,title,volume,liquidity,live\n1,BTC market,4000,800,true\n2,ETH market,1000,200,false\n",
-        encoding="utf-8",
-    )
+    sqlite_store.get_discovery_events = lambda run_id: [
+        {"event_id": "1", "title": "BTC market", "volume": 4000, "liquidity": 800, "live": 1},
+    ]
     prompt_path = tmp_path / "prompt.md"
     prompt_path.write_text("Rank these events", encoding="utf-8")
 
@@ -68,9 +60,8 @@ async def test_ranking_service_falls_back_when_llm_returns_invalid_json(
 
     monkeypatch.setattr("polymarket_cli.services.ranking.build_adapter", lambda settings, provider: DummyAdapter())
 
-    _run_id, ranking, report_path = await ranking_service.rank_csv(
-        label="crypto",
-        csv_path=csv_path,
+    ranking = await ranking_service.rank_run(
+        run_id="fake-run",
         prompt_path=prompt_path,
         provider="ollama",
         dry_run=False,
@@ -80,7 +71,6 @@ async def test_ranking_service_falls_back_when_llm_returns_invalid_json(
     assert ranking.provider == "heuristic"
     assert "fell back to heuristic ranking" in ranking.summary
     assert ranking.raw_response == "not json"
-    assert report_path.exists()
 
 
 @pytest.mark.asyncio
@@ -90,15 +80,12 @@ async def test_ranking_service_coerces_common_llm_types(
 ) -> None:
     settings = Settings(workdir=tmp_path)
     settings.ensure_directories()
-    csv_store = CSVStore(settings.raw_data_path, settings.processed_data_path, settings.exports_path)
     sqlite_store = SQLiteStore(settings.database_path)
-    ranking_service = RankingService(settings, csv_store, sqlite_store)
+    ranking_service = RankingService(settings, sqlite_store)
 
-    csv_path = tmp_path / "events.csv"
-    csv_path.write_text(
-        "event_id,title,volume,liquidity,live\n1,BTC market,4000,800,true\n",
-        encoding="utf-8",
-    )
+    sqlite_store.get_discovery_events = lambda run_id: [
+        {"event_id": "1", "title": "BTC market", "volume": 4000, "liquidity": 800, "live": 1},
+    ]
     prompt_path = tmp_path / "prompt.md"
     prompt_path.write_text("Rank these events", encoding="utf-8")
 
@@ -116,9 +103,8 @@ async def test_ranking_service_coerces_common_llm_types(
 
     monkeypatch.setattr("polymarket_cli.services.ranking.build_adapter", lambda settings, provider: DummyAdapter())
 
-    _run_id, ranking, report_path = await ranking_service.rank_csv(
-        label="crypto",
-        csv_path=csv_path,
+    ranking = await ranking_service.rank_run(
+        run_id="fake-run",
         prompt_path=prompt_path,
         provider="ollama",
         dry_run=False,
@@ -128,4 +114,3 @@ async def test_ranking_service_coerces_common_llm_types(
     assert ranking.shortlist[0].event_id == "1"
     assert ranking.shortlist[0].confidence == 85
     assert ranking.shortlist[0].risks == ["Volatility"]
-    assert report_path.exists()

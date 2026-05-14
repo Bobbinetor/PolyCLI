@@ -53,9 +53,6 @@ class DiscoverySnapshot(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     keywords: list[str] = Field(default_factory=list)
     events: list[EventSummary] = Field(default_factory=list)
-    raw_path: str | None = None
-    events_csv_path: str | None = None
-    markets_csv_path: str | None = None
 
 
 class RankingItem(BaseModel):
