@@ -1,0 +1,18 @@
+{
+  "servers": {
+    "polycli": {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "${workspaceFolder}",
+        "polycli-mcp"
+      ],
+      "env": {
+        "POLYMARKET_WORKDIR": "${workspaceFolder}",
+        "POLYMARKET_OLLAMA_MODEL": "qwen3.5:4b"
+      }
+    }
+  }
+}

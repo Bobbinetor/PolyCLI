@@ -41,12 +41,12 @@ The [official Polymarket CLI](https://github.com/Polymarket/polymarket-cli) is a
 
 ## Features
 
-- 🕵️ **Market Discovery**: Bulk search the Gamma API across multiple keywords and labels.
-- 🧠 **LLM Risk Ranking**: Pipe snapshots through Ollama or OpenRouter to find anomalies, wash-trading risks, or edge cases based on custom prompts.
-- 📉 **Paper Trading**: Simulate entering and closing positions at live prices without risk.
-- 📡 **Live Streaming**: Connect to the Polymarket WebSocket to watch order book changes in real time.
-- ⏰ **Watchlists**: Schedule background discovery jobs that poll at set intervals.
-- 💻 **Claude-style REPL**: A highly responsive, interactive terminal loop with auto-complete and bottom-bar syntax hinting.
+- **Market Discovery**: Bulk search the Gamma API across multiple keywords and labels.
+- **LLM Risk Ranking**: Pipe snapshots through Ollama or OpenRouter to find anomalies, wash-trading risks, or edge cases based on custom prompts.
+- **Paper Trading**: Simulate entering and closing positions at live prices without risk.
+- **Live Streaming**: Connect to the Polymarket WebSocket to watch order book changes in real time.
+- **Watchlists**: Schedule background discovery jobs that poll at set intervals.
+- **Claude-style REPL**: A highly responsive, interactive terminal loop with auto-complete and bottom-bar syntax hinting.
 
 ---
 
@@ -140,13 +140,52 @@ You can create your own prompt files to look for specific patterns (e.g., politi
 
 ---
 
-## 🤖 MCP Server (Model Context Protocol)
+## MCP Server (Model Context Protocol)
 
-PolyCLI natively ships with an **MCP Server**, allowing AI assistants (like Claude Desktop or Cursor) to use PolyCLI as a tool to query Polymarket and rank events directly in your chat!
+PolyCLI ships with an MCP server so AI assistants can discover markets, rank snapshots, and investigate wallets directly from chat.
+
+### VS Code Workspace Configuration
+
+If you are running PolyCLI from this repository, the most portable local setup is to let VS Code start the server with `uv` from the current workspace. This avoids hardcoding a virtualenv path and works across machines as long as `uv` is installed.
+
+1. Sync the local development environment:
+
+```bash
+uv sync
+```
+
+2. Create or open `.vscode/mcp.json`.
+
+3. Add the `polycli` server:
+
+```json
+{
+  "servers": {
+    "polycli": {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "${workspaceFolder}",
+        "polycli-mcp"
+      ],
+      "env": {
+        "POLYMARKET_WORKDIR": "${workspaceFolder}",
+        "POLYMARKET_OLLAMA_MODEL": "gemma3:27b"
+      }
+    }
+  }
+}
+```
+
+4. In VS Code, run `MCP: List Servers`, start `polycli`, and confirm trust when prompted.
+
+If you use OpenRouter, do not hardcode the API key in `mcp.json`. Use an input variable or an `envFile` instead.
 
 ### Claude Desktop Configuration
 
-Edit your Claude Desktop config file:
+Claude Desktop uses a different JSON schema from VS Code. Edit your Claude Desktop config file:
 - **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
 
@@ -167,8 +206,8 @@ Add the `polycli` server:
 }
 ```
 
-Once configured, you can ask Claude: 
-*"Use PolyCLI to discover the latest markets about 'AI', rank them for me, and then investigate the top holders of the riskiest market to see what else they are trading."*
+Once configured, you can ask your assistant:
+"Use PolyCLI to discover the latest markets about AI, rank them for me, and then investigate the top holders of the riskiest market to see what else they are trading."
 
 ### Available MCP Tools
 
